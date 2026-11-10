@@ -2,26 +2,33 @@ import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Inicializar Firebase Admin SDK si no está inicializado
-if (!getApps().length) {
-  initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-    })
-  });
+function getFirebaseAdmin() {
+  if (!getApps().length) {
+    let privateKey = process.env.FIREBASE_PRIVATE_KEY || '';
+    
+    // Reemplazar saltos de línea formateados o entrecomillados
+    if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+      privateKey = privateKey.slice(1, -1);
+    }
+    privateKey = privateKey.replace(/\\n/g, '\n');
+
+    initializeApp({
+      credential: cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: privateKey
+      })
+    });
+  }
+  return getFirestore();
 }
 
-const db = getFirestore();
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
 export default async function handler(req, res) {
-  // Permitir peticiones GET de prueba y POST para procesar datos
+  // Respuesta simple para GET (comprobación visual en navegador)
   if (req.method === 'GET') {
     return res.status(200).json({
       success: true,
-      message: "API lista para recibir noticias vía POST."
+      message: "API updateNews en línea y lista para recibir peticiones POST."
     });
   }
 
@@ -35,18 +42,23 @@ export default async function handler(req, res) {
     if (!candidateId || !newsText) {
       return res.status(400).json({
         success: false,
-        error: "Faltan parámetros. Se requiere 'candidateId' y 'newsText'."
+        error: "Faltan parámetros 'candidateId' o 'newsText'."
       });
     }
 
-    // 1. Analizar la noticia usando Gemini
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ success: false, error: "Falta GEMINI_API_KEY" });
+    }
+
+    // 1. Analizar noticia con Gemini
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const prompt = `Analiza la siguiente noticia electoral sobre el candidato '${candidateId}'. 
-Devuelve ÚNICAMENTE un objeto JSON estricto sin formato markdown adicional con este esquema:
+    const prompt = `Analiza la siguiente noticia sobre el candidato '${candidateId}'.
+Devuelve SOLO un JSON con esta estructura exacta (sin markdown extra):
 {
-"sentimentScore": <número decimal entre -1.0 y 1.0>,
-"summary": "<resumen claro de 1 o 2 oraciones>",
-"impact": "<Alto | Medio | Bajo>"
+  "sentimentScore": 0.5,
+  "summary": "Resumen de la noticia",
+  "impact": "Alto"
 }
 
 Noticia:
@@ -57,7 +69,8 @@ Noticia:
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const analysis = JSON.parse(cleanJson);
 
-    // 2. Actualizar o crear el documento del candidato en Firestore
+    // 2. Conectar y actualizar en Firestore
+    const db = getFirebaseAdmin();
     const candidateRef = db.collection('candidates').doc(candidateId);
     await candidateRef.set({
       lastNewsSummary: analysis.summary,
@@ -70,13 +83,14 @@ Noticia:
       success: true,
       candidateId,
       analysis,
-      message: `Documento '${candidateId}' actualizado con éxito en Firestore.`
+      message: `Documento '${candidateId}' actualizado en Firestore.`
     });
 
   } catch (error) {
     return res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
+      stack: error.stack
     });
   }
 }
