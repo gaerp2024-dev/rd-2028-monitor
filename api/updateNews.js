@@ -25,7 +25,7 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     return res.status(200).json({
       success: true,
-      message: "API updateNews en línea y lista para recibir peticiones POST."
+      message: "API updateNews activa."
     });
   }
 
@@ -48,11 +48,11 @@ export default async function handler(req, res) {
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const prompt = `Analiza la siguiente noticia sobre el candidato '${candidateId}'.
-Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura:
+    const prompt = `Analiza la siguiente noticia electoral sobre el candidato '${candidateId}'.
+Devuelve ÚNICAMENTE un objeto JSON estricto con esta estructura exacta:
 {
-  "sentimentScore": 0.5,
-  "summary": "Resumen breve",
+  "sentimentScore": 0.8,
+  "summary": "Resumen claro en 1 o 2 oraciones.",
   "impact": "Alto"
 }
 
@@ -60,7 +60,6 @@ Noticia:
 "${newsText}"`;
 
     let responseText = null;
-    // Lista de modelos a intentar en orden de preferencia
     const modelsToTry = ["gemini-2.5-flash", "gemini-1.5-flash-latest"];
 
     for (const modelName of modelsToTry) {
@@ -68,20 +67,20 @@ Noticia:
         const model = genAI.getGenerativeModel({ model: modelName });
         const result = await model.generateContent(prompt);
         responseText = result.response.text();
-        if (responseText) break; // Si responde, salir del bucle
+        if (responseText) break;
       } catch (err) {
-        console.warn(`Error con modelo ${modelName}, intentando siguiente...`, err.message);
+        console.warn(`Falló modelo ${modelName}, intentando siguiente...`);
       }
     }
 
     if (!responseText) {
-      throw new Error("No se pudo obtener respuesta de ningún modelo de Gemini (servicio ocupado).");
+      throw new Error("No se pudo obtener respuesta de ningún modelo de Gemini.");
     }
 
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const analysis = JSON.parse(cleanJson);
 
-    // Guardar resultado en Firestore
+    // Fusionar (merge) el análisis en el documento existente del candidato
     const db = getFirebaseAdmin();
     const candidateRef = db.collection('candidates').doc(candidateId);
     await candidateRef.set({
@@ -95,7 +94,7 @@ Noticia:
       success: true,
       candidateId,
       analysis,
-      message: `Documento '${candidateId}' actualizado en Firestore.`
+      message: `Documento '${candidateId}' actualizado en Firestore sin alterar las métricas preexistentes.`
     });
 
   } catch (error) {
