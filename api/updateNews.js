@@ -44,22 +44,18 @@ export default async function handler(req, res) {
     }
 
     if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ success: false, error: "Falta GEMINI_API_KEY" });
+      return res.status(500).json({ success: false, error: "Falta GEMINI_API_KEY en variables de entorno." });
     }
 
-    // Usar el modelo gemini-2.5-flash con respuesta estructurada JSON
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      generationConfig: { responseMimeType: "application/json" }
-    });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-    const prompt = `Analiza la siguiente noticia sobre el candidato '${candidateId}'.
-Devuelve un JSON con este esquema exacto:
+    const prompt = `Analiza la siguiente noticia electoral sobre el candidato '${candidateId}'.
+Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura:
 {
-  "sentimentScore": <numero entre -1.0 y 1.0>,
-  "summary": "<resumen de 1 o 2 oraciones>",
-  "impact": "<Alto | Medio | Bajo>"
+  "sentimentScore": 0.5,
+  "summary": "Resumen breve",
+  "impact": "Alto"
 }
 
 Noticia:
@@ -67,9 +63,9 @@ Noticia:
 
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
-    const analysis = JSON.parse(responseText.trim());
+    const cleanJson = responseText.replace(/```json|```/g, '').trim();
+    const analysis = JSON.parse(cleanJson);
 
-    // Guardar en Firestore
     const db = getFirebaseAdmin();
     const candidateRef = db.collection('candidates').doc(candidateId);
     await candidateRef.set({
@@ -83,14 +79,14 @@ Noticia:
       success: true,
       candidateId,
       analysis,
-      message: `Documento '${candidateId}' actualizado en Firestore.`
+      message: `Documento '${candidateId}' actualizado correctamente en Firestore.`
     });
 
   } catch (error) {
     return res.status(500).json({
       success: false,
-      error: error.message,
-      stack: error.stack
+      errorDetail: error.toString(),
+      message: error.message
     });
   }
 }
