@@ -44,13 +44,11 @@ export default async function handler(req, res) {
     }
 
     if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ success: false, error: "Falta GEMINI_API_KEY en variables de entorno." });
+      return res.status(500).json({ success: false, error: "Falta GEMINI_API_KEY." });
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-   const model = genAI.getGenerativeModel({ model: "gemini-3.8-flash" });
-
-    const prompt = `Analiza la siguiente noticia electoral sobre el candidato '${candidateId}'.
+    const prompt = `Analiza la siguiente noticia sobre el candidato '${candidateId}'.
 Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura:
 {
   "sentimentScore": 0.5,
@@ -61,11 +59,29 @@ Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura:
 Noticia:
 "${newsText}"`;
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    let responseText = null;
+    // Lista de modelos a intentar en orden de preferencia
+    const modelsToTry = ["gemini-2.5-flash", "gemini-1.5-flash-latest"];
+
+    for (const modelName of modelsToTry) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(prompt);
+        responseText = result.response.text();
+        if (responseText) break; // Si responde, salir del bucle
+      } catch (err) {
+        console.warn(`Error con modelo ${modelName}, intentando siguiente...`, err.message);
+      }
+    }
+
+    if (!responseText) {
+      throw new Error("No se pudo obtener respuesta de ningún modelo de Gemini (servicio ocupado).");
+    }
+
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const analysis = JSON.parse(cleanJson);
 
+    // Guardar resultado en Firestore
     const db = getFirebaseAdmin();
     const candidateRef = db.collection('candidates').doc(candidateId);
     await candidateRef.set({
@@ -79,7 +95,7 @@ Noticia:
       success: true,
       candidateId,
       analysis,
-      message: `Documento '${candidateId}' actualizado correctamente en Firestore.`
+      message: `Documento '${candidateId}' actualizado en Firestore.`
     });
 
   } catch (error) {
