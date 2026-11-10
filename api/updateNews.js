@@ -48,7 +48,7 @@ export default async function handler(req, res) {
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const prompt = `Analiza la siguiente noticia electoral sobre el candidato '${candidateId}'.
+    const prompt = `Analiza la siguiente noticia sobre el candidato '${candidateId}'.
 Devuelve ÚNICAMENTE un objeto JSON estricto con esta estructura exacta:
 {
   "sentimentScore": 0.8,
@@ -60,7 +60,8 @@ Noticia:
 "${newsText}"`;
 
     let responseText = null;
-    const modelsToTry = ["gemini-2.5-flash", "gemini-1.5-flash-latest"];
+    let lastError = null;
+    const modelsToTry = ["gemini-2.5-flash", "gemini-2.5-pro"];
 
     for (const modelName of modelsToTry) {
       try {
@@ -69,18 +70,22 @@ Noticia:
         responseText = result.response.text();
         if (responseText) break;
       } catch (err) {
-        console.warn(`Falló modelo ${modelName}, intentando siguiente...`);
+        lastError = err.message;
+        console.warn(`Error con ${modelName}:`, err.message);
       }
     }
 
     if (!responseText) {
-      throw new Error("No se pudo obtener respuesta de ningún modelo de Gemini.");
+      return res.status(500).json({
+        success: false,
+        error: `Fallo en Gemini: ${lastError}`
+      });
     }
 
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const analysis = JSON.parse(cleanJson);
 
-    // Fusionar (merge) el análisis en el documento existente del candidato
+    // Guardar en Firestore fusionando los datos nuevos
     const db = getFirebaseAdmin();
     const candidateRef = db.collection('candidates').doc(candidateId);
     await candidateRef.set({
@@ -94,7 +99,7 @@ Noticia:
       success: true,
       candidateId,
       analysis,
-      message: `Documento '${candidateId}' actualizado en Firestore sin alterar las métricas preexistentes.`
+      message: `Documento '${candidateId}' actualizado correctamente en Firestore.`
     });
 
   } catch (error) {
