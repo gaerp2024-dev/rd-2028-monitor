@@ -5,8 +5,6 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 function getFirebaseAdmin() {
   if (!getApps().length) {
     let privateKey = process.env.FIREBASE_PRIVATE_KEY || '';
-    
-    // Reemplazar saltos de línea formateados o entrecomillados
     if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
       privateKey = privateKey.slice(1, -1);
     }
@@ -24,7 +22,6 @@ function getFirebaseAdmin() {
 }
 
 export default async function handler(req, res) {
-  // Respuesta simple para GET (comprobación visual en navegador)
   if (req.method === 'GET') {
     return res.status(200).json({
       success: true,
@@ -50,15 +47,19 @@ export default async function handler(req, res) {
       return res.status(500).json({ success: false, error: "Falta GEMINI_API_KEY" });
     }
 
-    // 1. Analizar noticia con Gemini
+    // Usar el modelo gemini-2.5-flash con respuesta estructurada JSON
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+      generationConfig: { responseMimeType: "application/json" }
+    });
+
     const prompt = `Analiza la siguiente noticia sobre el candidato '${candidateId}'.
-Devuelve SOLO un JSON con esta estructura exacta (sin markdown extra):
+Devuelve un JSON con este esquema exacto:
 {
-  "sentimentScore": 0.5,
-  "summary": "Resumen de la noticia",
-  "impact": "Alto"
+  "sentimentScore": <numero entre -1.0 y 1.0>,
+  "summary": "<resumen de 1 o 2 oraciones>",
+  "impact": "<Alto | Medio | Bajo>"
 }
 
 Noticia:
@@ -66,10 +67,9 @@ Noticia:
 
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
-    const cleanJson = responseText.replace(/```json|```/g, '').trim();
-    const analysis = JSON.parse(cleanJson);
+    const analysis = JSON.parse(responseText.trim());
 
-    // 2. Conectar y actualizar en Firestore
+    // Guardar en Firestore
     const db = getFirebaseAdmin();
     const candidateRef = db.collection('candidates').doc(candidateId);
     await candidateRef.set({
