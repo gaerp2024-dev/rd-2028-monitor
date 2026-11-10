@@ -48,8 +48,8 @@ export default async function handler(req, res) {
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const prompt = `Analiza la siguiente noticia sobre el candidato '${candidateId}'.
-Devuelve ÚNICAMENTE un objeto JSON estricto con esta estructura exacta:
+    const prompt = `Analiza la siguiente noticia electoral sobre el candidato '${candidateId}'.
+Devuelve ÚNICAMENTE un objeto JSON estricto con esta estructura exacta (sin formato markdown adicionales):
 {
   "sentimentScore": 0.8,
   "summary": "Resumen claro en 1 o 2 oraciones.",
@@ -61,7 +61,8 @@ Noticia:
 
     let responseText = null;
     let lastError = null;
-    const modelsToTry = ["gemini-2.5-flash", "gemini-2.5-pro"];
+    // Modelos estables sopotados por la API
+    const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro"];
 
     for (const modelName of modelsToTry) {
       try {
@@ -71,7 +72,7 @@ Noticia:
         if (responseText) break;
       } catch (err) {
         lastError = err.message;
-        console.warn(`Error con ${modelName}:`, err.message);
+        console.warn(`Error intentando modelo ${modelName}:`, err.message);
       }
     }
 
@@ -85,7 +86,7 @@ Noticia:
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const analysis = JSON.parse(cleanJson);
 
-    // Guardar en Firestore fusionando los datos nuevos
+    // Guardar en Firestore manteniendo los campos existentes
     const db = getFirebaseAdmin();
     const candidateRef = db.collection('candidates').doc(candidateId);
     await candidateRef.set({
