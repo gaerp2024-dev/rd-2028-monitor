@@ -4,29 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitoreo Electoral RD 2028</title>
-    <!-- Tailwind CSS para diseño moderno -->
+    <!-- Tailwind CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- FontAwesome para iconos limpios -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-gray-100 font-sans leading-normal tracking-normal">
+<body class="bg-gray-900 text-gray-100 font-sans leading-normal tracking-normal min-h-screen">
 
-    <div class="container mx-auto px-4 py-8">
-        <header class="text-center mb-10">
-            <h1 class="text-4xl font-extrabold text-gray-800">Monitoreo Electoral RD 2028</h1>
-            <p class="text-gray-600 mt-2">Panel en tiempo real con análisis de noticias potenciado por IA</p>
+    <div class="container mx-auto px-6 py-10">
+        <!-- Encabezado Principal -->
+        <header class="text-center mb-12">
+            <h1 class="text-5xl font-extrabold text-white tracking-tight mb-2">Monitoreo Electoral RD 2028</h1>
+            <p class="text-gray-400 text-lg">Panel de Inteligencia Electoral en Tiempo Real (Encuestas, Tendencias y Análisis de IA)</p>
         </header>
 
-        <!-- Contenedor dinámico de candidatos -->
-        <div id="candidates-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div class="text-center col-span-full text-gray-500 py-10">Cargando datos de candidatos...</div>
+        <!-- Contenedor dinámico de tarjetas -->
+        <div id="candidates-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            <div class="text-center col-span-full text-gray-400 py-12 text-xl">
+                <i class="fas fa-spinner fa-spin mr-2"></i> Cargando centro de monitoreo...
+            </div>
         </div>
     </div>
 
-    <!-- Script de Firebase y lógica del Frontend -->
+    <!-- Script de Firebase y Renderizado -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
         import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
 
-        // Tu configuración oficial de Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyCbtn2RRSKs_dsv8ETHrG6bDSRtokdtXQ4",
             authDomain: "elecciones-2028.firebaseapp.com",
@@ -37,18 +41,17 @@
             measurementId: "G-HP70TVST5D"
         };
 
-        // Inicializar Firebase y Firestore
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        async function loadCandidates() {
+        async function loadFullDashboard() {
             const container = document.getElementById('candidates-container');
             try {
                 const querySnapshot = await getDocs(collection(db, "candidates"));
                 container.innerHTML = ''; 
 
                 if (querySnapshot.empty) {
-                    container.innerHTML = `<p class="text-center text-gray-500 col-span-full">No hay candidatos registrados en la base de datos.</p>`;
+                    container.innerHTML = `<p class="text-center text-gray-400 col-span-full">No se encontraron candidatos registrados.</p>`;
                     return;
                 }
 
@@ -56,45 +59,74 @@
                     const data = docSnap.data();
                     const candidateId = docSnap.id;
 
-                    // Color dinámico según impacto
-                    let impactColor = "bg-gray-200 text-gray-800";
-                    if (data.lastImpact === "Alto") impactColor = "bg-red-100 text-red-800";
-                    else if (data.lastImpact === "Medio") impactColor = "bg-yellow-100 text-yellow-800";
-                    else if (data.lastImpact === "Bajo") impactColor = "bg-green-100 text-green-800";
+                    // Colores de impacto de la IA
+                    let impactBadge = "bg-gray-700 text-gray-300 border-gray-600";
+                    if (data.lastImpact === "Alto") impactBadge = "bg-red-900 text-red-200 border-red-700";
+                    else if (data.lastImpact === "Medio") impactBadge = "bg-yellow-900 text-yellow-200 border-yellow-700";
+                    else if (data.lastImpact === "Bajo") impactBadge = "bg-green-900 text-green-200 border-green-700";
 
-                    // Crear tarjeta para el candidato
                     const card = document.createElement('div');
-                    card.className = "bg-white rounded-lg shadow-md p-6 flex flex-col justify-between";
+                    card.className = "bg-gray-800 rounded-2xl shadow-2xl p-7 border border-gray-700 flex flex-col justify-between";
                     card.innerHTML = `
                         <div>
-                            <div class="flex justify-between items-center mb-4">
-                                <h2 class="text-2xl font-bold text-gray-800 capitalize">${data.candidate || candidateId}</h2>
-                                <span class="px-3 py-1 rounded-full text-xs font-semibold ${impactColor}">
+                            <!-- Cabecera del Candidato -->
+                            <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
+                                <div>
+                                    <h2 class="text-3xl font-bold text-white capitalize">${data.candidate || candidateId}</h2>
+                                    <span class="text-xs text-indigo-400 uppercase tracking-wider font-semibold">Candidatura RD 2028</span>
+                                </div>
+                                <span class="px-3 py-1 rounded-full text-xs font-bold border ${impactBadge}">
                                     Impacto: ${data.lastImpact || 'N/A'}
                                 </span>
                             </div>
-                            
-                            <div class="mb-4">
-                                <p class="text-sm font-semibold text-gray-500">Último Resumen:</p>
-                                <p class="text-gray-700 mt-1 italic">"${data.lastNewsSummary || 'Sin noticias recientes analizadas.'}"</p>
+
+                            <!-- Panel de Métricas Completas (Estadísticas y Tendencias) -->
+                            <div class="grid grid-cols-2 gap-4 mb-6">
+                                <div class="bg-gray-900 p-4 rounded-xl border border-gray-700 text-center">
+                                    <span class="text-gray-400 text-xs block uppercase font-medium">Índice Combinado</span>
+                                    <span class="text-3xl font-black text-indigo-400">${data.combined ?? '0'}%</span>
+                                </div>
+                                <div class="bg-gray-900 p-4 rounded-xl border border-gray-700 text-center">
+                                    <span class="text-gray-400 text-xs block uppercase font-medium">Encuestas (Polls)</span>
+                                    <span class="text-2xl font-bold text-white">${data.polls ?? '0'}%</span>
+                                </div>
+                                <div class="bg-gray-900 p-4 rounded-xl border border-gray-700 text-center">
+                                    <span class="text-gray-400 text-xs block uppercase font-medium">Tendencias Web</span>
+                                    <span class="text-xl font-semibold text-gray-200">${data.trends ?? '0'}%</span>
+                                </div>
+                                <div class="bg-gray-900 p-4 rounded-xl border border-gray-700 text-center">
+                                    <span class="text-gray-400 text-xs block uppercase font-medium">Sentimiento General</span>
+                                    <span class="text-xl font-semibold text-gray-200">${data.sentiment ?? '0'}</span>
+                                </div>
+                            </div>
+
+                            <!-- Bloque del Informe de IA -->
+                            <div class="bg-gray-900/60 p-4 rounded-xl border-l-4 border-indigo-500 mb-4">
+                                <p class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-1">
+                                    <i class="fas fa-robot mr-1"></i> Último Reporte Analítico (IA):
+                                </p>
+                                <p class="text-gray-300 text-sm italic leading-relaxed">
+                                    "${data.lastNewsSummary || 'Aún no hay reportes de noticias recientes procesados.'}"
+                                </p>
                             </div>
                         </div>
 
-                        <div class="border-t pt-4 mt-4 text-xs text-gray-500 flex justify-between">
-                            <span>Sentimiento AI: <strong>${data.lastSentimentScore ?? 'N/A'}</strong></span>
-                            <span>Actualizado: ${data.updatedAt ? new Date(data.updatedAt).toLocaleTimeString() : 'N/A'}</span>
+                        <!-- Pie de tarjeta con datos técnicos -->
+                        <div class="border-t border-gray-700 pt-4 mt-2 text-xs text-gray-400 flex justify-between items-center">
+                            <span>Score IA: <strong class="text-white">${data.lastSentimentScore ?? 'N/A'}</strong></span>
+                            <span>Actualizado: <strong class="text-gray-300">${data.updatedAt ? new Date(data.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'N/A'}</strong></span>
                         </div>
                     `;
                     container.appendChild(card);
                 });
 
             } catch (error) {
-                console.error("Error al cargar desde Firestore:", error);
-                container.innerHTML = `<p class="text-center text-red-500 col-span-full">Error al cargar los datos. Revisa las reglas de seguridad de Firestore.</p>`;
+                console.error("Error al renderizar el panel:", error);
+                container.innerHTML = `<p class="text-center text-red-400 col-span-full">Error al conectar con la base de datos.</p>`;
             }
         }
 
-        loadCandidates();
+        loadFullDashboard();
     </script>
 </body>
 </html>
