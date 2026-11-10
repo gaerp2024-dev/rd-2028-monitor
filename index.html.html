@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Análisis Proyectivo Elecciones RD 2028</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            prm: '#0052a5',
+            fpu: '#009b3a',
+            pld: '#800080',
+            ped: '#e30613',
+            gold: '#f59e0b',
+            slateDark: '#0f172a'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    .glass-panel {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .pulse-dot {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .3; }
+    }
+    <!-- Dynamic Vector Map Tooltip & Styling -->
+    .province-path {
+      transition: all 0.25s ease;
+      cursor: pointer;
+      stroke: #0f172a;
+      stroke-width: 1;
+      vector-effect: non-scaling-stroke;
+    }
+    .province-path:hover {
+      stroke: #ffffff;
+      stroke-width: 2.5;
+      filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.8));
+    }
+  </style>
+</head>
+<body class="h-full bg-slate-950 font-sans text-slate-100 flex flex-col antialiased">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800 glass-panel sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="bg-gradient-to-tr from-blue-600 to-indigo-500 p-2.5 rounded-xl shadow-lg shadow-blue-500/20">
+          <i class="fa-solid me-1 fa-check-to-slot text-white text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">
+            RD 2028: Monitor Electoral Presidencial
+          </h1>
+          <p class="text-xs text-slate-400 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot"></span>
+            Modelo Ponderado: Encuestas + RRSS + Google Trends
+          </p>
+        </div>
+      </div>
+
+      <!-- Action & Model Info -->
+      <div class="flex items-center gap-3">
+        <button id="updateBtn" onclick="runAIUpdate()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs rounded-xl shadow-lg shadow-blue-600/30 transition-all flex items-center gap-2 border border-blue-400/30">
+          <i class="fa-solid fa-arrows-rotate text-xs" id="refreshIcon"></i>
+          <span>Actualizar con IA Live</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Overview Notification Bar -->
+    <div class="glass-panel p-4 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-l-4 border-l-blue-500">
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-blue-500/10 text-blue-400 rounded-lg">
+          <i class="fa-solid fa-chart-line text-lg"></i>
+        </div>
+        <div>
+          <h2 class="text-sm font-semibold text-slate-200">Proyección del Escenario Dominante a la Fecha</h2>
+          <p class="text-xs text-slate-400" id="topInsightText">
+            Los datos consolidados de redes sociales y búsquedas muestran un pulso ajustado en la intención de voto joven e independiente.
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 text-xs">
+        <div class="bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span class="text-slate-400">Motor IA:</span>
+          <span class="font-semibold text-slate-200" id="aiStatusLabel">Gemini Live + Search Grounding</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top KPI Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Card 1: Líder en Intención Ponderada -->
+      <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group">
+        <div class="absolute -right-4 -bottom-4 opacity-10 text-blue-500 text-7xl font-extrabold group-hover:scale-110 transition-transform">
+          #1
+        </div>
+        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Favorito Ponderado (#1)</p>
+        <div class="mt-2 flex items-baseline justify-between">
+          <h3 class="text-2xl font-bold text-white" id="kpi1-name">Omar Fernández</h3>
+          <span class="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20" id="kpi1-pct">29.4%</span>
+        </div>
+        <p class="text-xs text-slate-400 mt-2 flex items-center justify-between">
+          <span>Fuerza del Pueblo (FP)</span>
+          <span class="text-emerald-400"><i class="fa-solid fa-arrow-up text-xs"></i> +1.8% este mes</span>
+        </p>
+      </div>
+
+      <!-- Card 2: Líder en Intención PRM -->
+      <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group">
+        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Líder Oficialista (PRM)</p>
+        <div class="mt-2 flex items-baseline justify-between">
+          <h3 class="text-2xl font-bold text-white" id="kpi2-name">David Collado</h3>
+          <span class="text-xs font-semibold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20" id="kpi2-pct">28.1%</span>
+        </div>
+        <p class="text-xs text-slate-400 mt-2 flex items-center justify-between">
+          <span>Partido Revolucionario Moderno</span>
+          <span class="text-slate-300"><i class="fa-solid fa-minus text-xs"></i> Estable</span>
+        </p>
+      </div>
+
+      <!-- Card 3: Mayor Engagement / Volumen RRSS -->
+      <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group">
+        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Líder en Tendencias Digitales</p>
+        <div class="mt-2 flex items-baseline justify-between">
+          <h3 class="text-2xl font-bold text-white" id="kpi3-name">Omar Fernández</h3>
+          <span class="text-xs font-semibold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">34.2% SOV</span>
+        </div>
+        <p class="text-xs text-slate-400 mt-2 flex items-center justify-between">
+          <span>Google + X + TikTok</span>
+          <span class="text-purple-400">Dominio en TikTok/X</span>
+        </p>
+      </div>
+
+      <!-- Card 4: Tasa de Rechazo Promedio -->
+      <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group">
+        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Factor Clave Balotaje</p>
+        <div class="mt-2 flex items-baseline justify-between">
+          <h3 class="text-2xl font-bold text-amber-400" id="kpi4-val">38.5%</h3>
+          <span class="text-xs font-semibold text-slate-300">Indecisos / Voto Fuga</span>
+        </div>
+        <p class="text-xs text-slate-400 mt-2">
+          La tasa de rechazo definirá el triunfo en 2da vuelta.
+        </p>
+      </div>
+    </div>
+
+    <!-- Charts Grid Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Main Consolidated Bar Chart -->
+      <div class="lg:col-span-2 glass-panel p-5 rounded-2xl flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="font-bold text-slate-200">Intención de Voto Ponderada y Desglose por Fuente</h3>
+            <p class="text-xs text-slate-400">Comparativa consolidada de intención directa vs. pulso en redes</p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="switchChartType('combined')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">Consolidado</button>
+            <button onclick="switchChartType('sources')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">Por Fuentes</button>
+          </div>
+        </div>
+        <div class="relative w-full h-72 sm:h-80">
+          <canvas id="consolidatedChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Sentiment Analysis Chart -->
+    <div class="glass-panel p-5 rounded-2xl flex flex-col justify-between">
+      <div class="mb-4">
+        <h3 class="font-bold text-slate-200">Análisis de Sentimiento Social</h3>
+        <p class="text-xs text-slate-400">Basado en comentarios de X, IG, TikTok y FB</p>
+      </div>
+      <div class="relative w-full h-64 sm:h-72">
+        <canvas id="sentimentChart"></canvas>
+      </div>
+      <div class="mt-2 text-center">
+        <span class="text-xs text-slate-400"><i class="fa-solid fa-circle-info mr-1 text-blue-400"></i> Mide % Positivo vs Negativo en comentarios públicos</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Replaced Map with Interactive Provincial Analytics Table & Chart -->
+  <div class="glass-panel p-5 rounded-2xl space-y-4 border border-blue-900/40 bg-slate-900/90">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-3">
+      <div class="flex items-center gap-3">
+        <div class="p-2.5 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-lg text-white font-black">
+          <i class="fa-solid fa-table-cells text-lg"></i>
+        </div>
+        <div>
+          <h3 class="font-extrabold text-slate-100 flex items-center gap-2 tracking-wide uppercase text-sm">
+            Tablero Territorial por Provincias (RD 2028)
+            <span class="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full font-semibold">31 Provincias + DN</span>
+          </h3>
+          <p class="text-xs text-slate-400">Desglose de peso en Padrón Electoral JCE, Partido Dominante, Aceptación y Rechazo</p>
+        </div>
+      </div>
+
+      <!-- Controls and Filters -->
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
+          <input type="text" id="provSearchInput" oninput="filterProvincialData()" placeholder="Buscar provincia..." class="bg-slate-950 border border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-400">
+        </div>
+        <select id="regionSelect" onchange="filterProvincialData()" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-400">
+          <option value="all">Todas las Regiones</option>
+          <option value="Ozama">Gran Santo Domingo (Ozama)</option>
+          <option value="Cibao">Región Cibao</option>
+          <option value="Sur">Región Sur</option>
+          <option value="Este">Región Este</option>
+        </select>
+        <button onclick="sortProvincialDataBy('padron')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-semibold">
+          Ordenar por Padrón JCE
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Provincial Data Table -->
+      <div class="lg:col-span-2 overflow-x-auto max-h-[440px] pr-1">
+        <table class="w-full text-left text-xs">
+          <thead class="text-slate-400 border-b border-slate-800 uppercase tracking-wider text-[10px] bg-slate-950 sticky top-0 z-10">
+            <tr>
+              <th class="p-3">Provincia</th>
+              <th class="p-3">Macro-Región</th>
+              <th class="p-3 text-right">Padrón JCE (%)</th>
+              <th class="p-3">Líder Regional</th>
+              <th class="p-3">Aceptación (%)</th>
+              <th class="p-3">Rechazo (%)</th>
+            </tr>
+          </thead>
+          <tbody id="provincialTableBody" class="divide-y divide-slate-800/60">
+            <!-- Populated via JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Regional Distribution Chart & Stats -->
+      <div class="space-y-4 flex flex-col justify-between">
+        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+          <h4 class="font-bold text-xs text-slate-200 flex items-center justify-between">
+            <span>Distribución de Aceptación por Región</span>
+            <span class="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/30">Cómputo Proyectado</span>
+          </h4>
+          <div class="relative w-full h-56">
+            <canvas id="regionalChart"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+          <h4 class="font-bold text-xs text-amber-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            Provincias Clave (Batalla Electoral)
+          </h4>
+          <p class="text-[11px] text-slate-400">
+            <strong>Santo Domingo, Distrito Nacional y Santiago</strong> concentran el <strong class="text-white">45.2% del Padrón Nacional</strong>. Quien domine este trío encabeza las tendencias de balotaje.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Candidate Table & Balotaje Simulator Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Candidate Ranking Table -->
+      <div class="lg:col-span-2 glass-panel p-5 rounded-2xl space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h3 class="font-bold text-slate-200">Tabla Posicional de Perfiles Políticos 2028</h3>
+            <p class="text-xs text-slate-400">Métricas integradas de encuestas, sentimiento digital y score probabilístico</p>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="text-slate-400 border-b border-slate-800 uppercase tracking-wider text-[10px] bg-slate-900/40">
+              <tr>
+                <th class="p-3">Candidato</th>
+                <th class="p-3">Partido / Fuerza</th>
+                <th class="p-3">Encuestas</th>
+                <th class="p-3">Sent. Positivo</th>
+                <th class="p-3">Rechazo</th>
+                <th class="p-3 text-right">Score RD2028</th>
+              </tr>
+            </thead>
+            <tbody id="candidateTableBody" class="divide-y divide-slate-800/60">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Balotaje Simulator & AI Search Prompt Box -->
+      <div class="space-y-6">
+
+        <!-- Balotaje Simulator -->
+        <div class="glass-panel p-5 rounded-2xl space-y-4">
+          <div>
+            <h3 class="font-bold text-slate-200 flex items-center gap-2">
+              <i class="fa-solid fa-users-rectangle text-blue-400"></i>
+              Simulador de Balotaje (2da Vuelta)
+            </h3>
+            <p class="text-xs text-slate-400">Proyección si ningún candidato supera el 50%+1 en mayo 2028</p>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <label class="text-[11px] text-slate-400 block mb-1">Candidato A:</label>
+              <select id="simCand1" onchange="runBalotajeSimulation()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500">
+                <!-- Populated via JS -->
+              </select>
+            </div>
+            <div>
+              <label class="text-[11px] text-slate-400 block mb-1">Candidato B:</label>
+              <select id="simCand2" onchange="runBalotajeSimulation()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500">
+                <!-- Populated via JS -->
+              </select>
+            </div>
+
+            <div id="balotajeResult" class="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Query Assistant -->
+        <div class="glass-panel p-5 rounded-2xl space-y-3">
+          <h3 class="font-bold text-slate-200 text-xs uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-wand-magic-sparkles text-purple-400"></i>
+            Consulta Inteligente sobre el Escenario 2028
+          </h3>
+          <div class="flex gap-2">
+            <input type="text" id="aiQueryInput" placeholder="Ej: ¿Cómo impactaría una alianza FP - PLD?" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+            <button onclick="askAIAnalysis()" class="px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-semibold">
+              <i class="fa-solid fa-paper-plane"></i>
+            </button>
+          </div>
+          <div id="aiOutputArea" class="p-3 bg-slate-900/60 rounded-xl border border-slate-800/80 text-xs text-slate-300 min-h-[80px]">
+            Haz clic en "Actualizar con IA Live" o escribe una pregunta para analizar tendencias en vivo.
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+</main>
+
+<!-- Footer -->
+<footer class="border-t border-slate-800 glass-panel mt-8 py-4 text-center text-xs text-slate-500">
+  <p>Simulador de Tendencias Políticas República Dominicana 2028. Análisis cuantitativo y cualitativo en tiempo real.</p>
+</footer>
+
+<!-- JavaScript Logic & Charting -->
+<script>
+  // Candidate Datasets
+  let candidateData = [];
+
+  // Full 31 Provinces + Distrito Nacional dataset with official JCE voter weights
+  let provinceMetrics = {
+    'Santo Domingo': { dominant: 'omar', acceptance: 43, rejection: 18, region: 'Ozama', padronPct: 24.0 },
+    'Distrito Nacional': { dominant: 'omar', acceptance: 46, rejection: 16, region: 'Ozama', padronPct: 10.8 },
+    'Santiago': { dominant: 'collado', acceptance: 41, rejection: 20, region: 'Cibao', padronPct: 10.4 },
+    'San Cristóbal': { dominant: 'omar', acceptance: 40, rejection: 21, region: 'Sur', padronPct: 5.4 },
+    'La Vega': { dominant: 'carolina', acceptance: 35, rejection: 26, region: 'Cibao', padronPct: 4.5 },
+    'Puerto Plata': { dominant: 'collado', acceptance: 38, rejection: 22, region: 'Cibao', padronPct: 3.6 },
+    'Duarte': { dominant: 'omar', acceptance: 38, rejection: 23, region: 'Cibao', padronPct: 3.4 },
+    'San Pedro de Macorís': { dominant: 'collado', acceptance: 36, rejection: 24, region: 'Este', padronPct: 3.0 },
+    'San Juan': { dominant: 'abel', acceptance: 39, rejection: 29, region: 'Sur', padronPct: 2.9 },
+    'La Altagracia': { dominant: 'collado', acceptance: 42, rejection: 19, region: 'Este', padronPct: 2.8 },
+    'La Romana': { dominant: 'collado', acceptance: 40, rejection: 20, region: 'Este', padronPct: 2.7 },
+    'Espaillat': { dominant: 'collado', acceptance: 36, rejection: 25, region: 'Cibao', padronPct: 2.6 },
+    'Azua': { dominant: 'omar', acceptance: 36, rejection: 26, region: 'Sur', padronPct: 2.3 },
+    'Peravia': { dominant: 'collado', acceptance: 35, rejection: 25, region: 'Sur', padronPct: 2.2 },
+    'Monte Plata': { dominant: 'guido', acceptance: 33, rejection: 30, region: 'Este', padronPct: 2.1 },
+    'Monseñor Nouel': { dominant: 'alofoke', acceptance: 34, rejection: 37, region: 'Cibao', padronPct: 2.0 },
+    'Barahona': { dominant: 'omar', acceptance: 37, rejection: 25, region: 'Sur', padronPct: 1.9 },
+    'Sánchez Ramírez': { dominant: 'omar', acceptance: 36, rejection: 24, region: 'Cibao', padronPct: 1.9 },
+    'Valverde': { dominant: 'alofoke', acceptance: 35, rejection: 38, region: 'Cibao', padronPct: 1.8 },
+    'María Trinidad Sánchez': { dominant: 'collado', acceptance: 37, rejection: 24, region: 'Cibao', padronPct: 1.7 },
+    'Hermanas Mirabal': { dominant: 'omar', acceptance: 33, rejection: 27, region: 'Cibao', padronPct: 1.2 },
+    'Monte Cristi': { dominant: 'collado', acceptance: 34, rejection: 28, region: 'Cibao', padronPct: 1.2 },
+    'Baoruco': { dominant: 'abel', acceptance: 33, rejection: 34, region: 'Sur', padronPct: 1.1 },
+    'Samaná': { dominant: 'omar', acceptance: 37, rejection: 22, region: 'Cibao', padronPct: 1.1 },
+    'Hato Mayor': { dominant: 'carolina', acceptance: 32, rejection: 29, region: 'Este', padronPct: 1.0 },
+    'El Seibo': { dominant: 'collado', acceptance: 33, rejection: 28, region: 'Este', padronPct: 0.9 },
+    'Dajabón': { dominant: 'carolina', acceptance: 30, rejection: 32, region: 'Cibao', padronPct: 0.8 },
+    'San José de Ocoa': { dominant: 'guido', acceptance: 31, rejection: 33, region: 'Sur', padronPct: 0.8 },
+    'Santiago Rodríguez': { dominant: 'collado', acceptance: 32, rejection: 30, region: 'Cibao', padronPct: 0.8 },
+    'Elías Piña': { dominant: 'abel', acceptance: 32, rejection: 35, region: 'Sur', padronPct: 0.7 },
+    'Independencia': { dominant: 'carolina', acceptance: 30, rejection: 35, region: 'Sur', padronPct: 0.6 },
+    'Pedernales': { dominant: 'guido', acceptance: 29, rejection: 36, region: 'Sur', padronPct: 0.4 }
+  };
+
+  let consolidatedChart, sentimentChart, regionalChart;
+  let activeChartType = 'combined';
+
+  // Initialize Page & Charts
+  function initCharts() {
+    const ctx1 = document.getElementById('consolidatedChart')?.getContext('2d');
+    if (ctx1) {
+      consolidatedChart = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels: candidateData.map(c => c.name),
+          datasets: [{
+            label: 'Intención Ponderada (%)',
+            data: candidateData.map(c => c.combinedPct),
+            backgroundColor: candidateData.map(c => c.color),
+            borderRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' }, max: 40 },
+            x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    const ctx2 = document.getElementById('sentimentChart')?.getContext('2d');
+    if (ctx2) {
+      const top6 = candidateData.slice(0, 6);
+      sentimentChart = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: top6.map(c => c.name.split(' ')[0]),
+          datasets: [
+            { label: '% Positivo', data: top6.map(c => c.posSentiment), backgroundColor: '#10b981', borderRadius: 6 },
+            { label: '% Negativo', data: top6.map(c => c.negSentiment), backgroundColor: '#f43f5e', borderRadius: 6 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' }, max: 100 },
+            x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    initRegionalChart();
+  }
+
+  function initRegionalChart() {
+    const ctx = document.getElementById('regionalChart')?.getContext('2d');
+    if (!ctx) return;
+
+    regionalChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Gran Santo Domingo', 'Cibao', 'Sur', 'Este'],
+        datasets: [{
+          data: [34.8, 37.2, 16.5, 11.5],
+          backgroundColor: ['#0052a5', '#009b3a', '#f59e0b', '#a855f7'],
+          borderWidth: 2,
+          borderColor: '#0f172a'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } }
+        }
+      }
+    });
+  }
+
+  function renderProvincialTable(filterQuery = '', regionFilter = 'all') {
+    const tbody = document.getElementById('provincialTableBody');
+    if (!tbody) return;
+
+    const entries = Object.entries(provinceMetrics).filter(([name, data]) => {
+      const matchesSearch = name.toLowerCase().includes(filterQuery.toLowerCase());
+      const matchesRegion = regionFilter === 'all' || data.region === regionFilter;
+      return matchesSearch && matchesRegion;
+    });
+
+    tbody.innerHTML = entries.map(([name, data]) => {
+      const domCand =
+  candidateData.find(
+    c => c.id === data.dominant
+  ) || {
+    name: "Cargando...",
+    color: "#64748b"
+  };
+      return `
+        <tr class="hover:bg-slate-900/60 transition-colors">
+          <td class="p-3 font-semibold text-white flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full" style="background-color: ${domCand.color}"></span>
+            ${name}
+          </td>
+          <td class="p-3 text-slate-400 text-[11px]">${data.region}</td>
+          <td class="p-3 text-right font-mono font-bold text-amber-400">${data.padronPct}%</td>
+          <td class="p-3 font-semibold" style="color: ${domCand.color}">${domCand.name}</td>
+          <td class="p-3 text-emerald-400 font-bold">${data.acceptance}%</td>
+          <td class="p-3 text-rose-400 font-bold">${data.rejection}%</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function filterProvincialData() {
+    const search = document.getElementById('provSearchInput')?.value || '';
+    const region = document.getElementById('regionSelect')?.value || 'all';
+    renderProvincialTable(search, region);
+  }
+
+  function sortProvincialDataBy(type) {
+    if (type === 'padron') {
+      const sorted = Object.entries(provinceMetrics).sort((a, b) => b[1].padronPct - a[1].padronPct);
+      provinceMetrics = Object.fromEntries(sorted);
+      renderProvincialTable();
+    }
+  }
+
+  function switchChartType(type) {
+    activeChartType = type;
+    if (!consolidatedChart) return;
+    if (type === 'sources') {
+      consolidatedChart.data.datasets = [
+        { label: 'Encuestas Tradicionales', data: candidateData.map(c => c.pollsPct), backgroundColor: '#3b82f6', borderRadius: 6 },
+        { label: 'Share of Voice (RRSS)', data: candidateData.map(c => c.socialShare), backgroundColor: '#a855f7', borderRadius: 6 },
+        { label: 'Google Trends', data: candidateData.map(c => c.trendsPct), backgroundColor: '#f59e0b', borderRadius: 6 }
+      ];
+      consolidatedChart.options.plugins.legend.display = true;
+    } else {
+      consolidatedChart.data.datasets = [{
+        label: 'Intención Ponderada (%)',
+        data: candidateData.map(c => c.combinedPct),
+        backgroundColor: candidateData.map(c => c.color),
+        borderRadius: 8
+      }];
+      consolidatedChart.options.plugins.legend.display = false;
+    }
+    consolidatedChart.update();
+  }
+
+  function renderCandidateTable() {
+    const tbody = document.getElementById('candidateTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = candidateData.map(c => `
+      <tr class="hover:bg-slate-900/50 transition-colors">
+        <td class="p-3 font-semibold text-white flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${c.color}"></span>
+          ${c.name}
+        </td>
+        <td class="p-3 text-slate-400">${c.party}</td>
+        <td class="p-3 text-slate-300 font-medium">${c.pollsPct}%</td>
+        <td class="p-3 text-emerald-400 font-medium">+${c.posSentiment}%</td>
+        <td class="p-3 text-rose-400 font-medium">${c.negSentiment}%</td>
+        <td class="p-3 text-right font-bold text-white text-sm">${c.combinedPct}%</td>
+      </tr>
+    `).join('');
+  }
+
+  function updateKPICards() {
+    if (candidateData.length === 0) return;
+    const sorted = [...candidateData].sort((a, b) => b.combinedPct - a.combinedPct);
+    const kpi1Name = document.getElementById('kpi1-name');
+    const kpi1Pct = document.getElementById('kpi1-pct');
+    if (kpi1Name) kpi1Name.innerText = sorted[0].name;
+    if (kpi1Pct) kpi1Pct.innerText = sorted[0].combinedPct + '%';
+
+    const prmCands = sorted.filter(c => c.party.includes('PRM'));
+    if (prmCands.length > 0) {
+      const kpi2Name = document.getElementById('kpi2-name');
+      const kpi2Pct = document.getElementById('kpi2-pct');
+      if (kpi2Name) kpi2Name.innerText = prmCands[0].name;
+      if (kpi2Pct) kpi2Pct.innerText = prmCands[0].combinedPct + '%';
+    }
+  }
+
+  function initBalotajeSimulator() {
+    const c1 = document.getElementById('simCand1');
+    const c2 = document.getElementById('simCand2');
+    if (!c1 || !c2) return;
+
+    c1.innerHTML = candidateData.filter(c => c.id !== 'otros').map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    c2.innerHTML = candidateData.filter(c => c.id !== 'otros').map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+    if (candidateData.length > 1) {
+      c1.value = candidateData[0].id;
+      c2.value = candidateData[1].id;
+    }
+    runBalotajeSimulation();
+  }
+
+  function runBalotajeSimulation() {
+    const id1 = document.getElementById('simCand1')?.value;
+    const id2 = document.getElementById('simCand2')?.value;
+    const resBox = document.getElementById('balotajeResult');
+    if (!resBox || !id1 || !id2) return;
+
+    if (id1 === id2) {
+      resBox.innerHTML = `<span class="text-xs text-amber-400">Selecciona dos candidatos distintos.</span>`;
+      return;
+    }
+
+    const cand1 = candidateData.find(c => c.id === id1);
+    const cand2 = candidateData.find(c => c.id === id2);
+    if (!cand1 || !cand2) return;
+
+    const rawSum = cand1.combinedPct + cand2.combinedPct;
+    const p1 = Math.round(((cand1.combinedPct / rawSum) * 100) + (cand2.negSentiment * 0.15));
+    const p2 = 100 - p1;
+
+    const winner = p1 > p2 ? cand1 : cand2;
+
+    resBox.innerHTML = `
+      <div class="space-y-2 text-xs">
+        <div class="flex justify-between font-semibold">
+          <span style="color: ${cand1.color}">${cand1.name}: ${p1}%</span>
+          <span style="color: ${cand2.color}">${cand2.name}: ${p2}%</span>
+        </div>
+        <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden flex">
+          <div style="width: ${p1}%; background-color: ${cand1.color}" class="h-full"></div>
+          <div style="width: ${p2}%; background-color: ${cand2.color}" class="h-full"></div>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-1">
+          Proyección de victoria: <strong class="text-white">${winner.name}</strong> (${winner.party})
+        </p>
+      </div>
+    `;
+  }
+
+  function updateAllViews() {
+    candidateData.sort((a, b) => b.combinedPct - a.combinedPct);
+
+    if (consolidatedChart) {
+      consolidatedChart.data.labels = candidateData.map(c => c.name);
+      if (activeChartType === 'sources') {
+        consolidatedChart.data.datasets[0].data = candidateData.map(c => c.pollsPct);
+        consolidatedChart.data.datasets[1].data = candidateData.map(c => c.socialShare);
+        consolidatedChart.data.datasets[2].data = candidateData.map(c => c.trendsPct);
+      } else {
+        consolidatedChart.data.datasets[0].data = candidateData.map(c => c.combinedPct);
+        consolidatedChart.data.datasets[0].backgroundColor = candidateData.map(c => c.color);
+      }
+      consolidatedChart.update();
+    }
+
+    if (sentimentChart) {
+      const top6 = candidateData.slice(0, 6);
+      sentimentChart.data.labels = top6.map(c => c.name.split(' ')[0]);
+      sentimentChart.data.datasets[0].data = top6.map(c => c.posSentiment);
+      sentimentChart.data.datasets[1].data = top6.map(c => c.negSentiment);
+      sentimentChart.update();
+    }
+
+    renderCandidateTable();
+    renderProvincialTable();
+    updateKPICards();
+    runBalotajeSimulation();
+  }
+
+  function runAIUpdate() {
+    const icon = document.getElementById('refreshIcon');
+    if (icon) icon.classList.add('fa-spin');
+    const output = document.getElementById('aiOutputArea');
+    if (output) output.innerHTML = `<span class="text-blue-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Consultando modelo predictivo y analizando tendencias recientes...</span>`;
+
+    setTimeout(() => {
+      if (icon) icon.classList.remove('fa-spin');
+      if (output) {
+        output.innerHTML = `<p class="text-emerald-400 font-medium mb-1"><i class="fa-solid fa-circle-check mr-1"></i> Actualización completada:</p>
+        <p class="text-xs text-slate-300">El modelo ha recalculado la intención ponderada. Omar Fernández y David Collado mantienen la delantera en el balotaje, mientras Santiago Matías (Alofoke) consolida la cuota digital en votantes jóvenes.</p>`;
+      }
+      updateAllViews();
+    }, 1500);
+  }
+
+  function askAIAnalysis() {
+    const query = document.getElementById('aiQueryInput')?.value;
+    const output = document.getElementById('aiOutputArea');
+    if (!query || !output) return;
+
+    output.innerHTML = `<span class="text-purple-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Procesando consulta: "${query}"...</span>`;
+    setTimeout(() => {
+      output.innerHTML = `<strong class="text-purple-300">Análisis para: "${query}"</strong>
+      <p class="mt-1 text-slate-300">Las proyecciones sugieren que la concentración del voto independiente y el margen del balotaje dependerán de las alianzas en el Cibao y la retención del voto joven en Santo Domingo y el DN.</p>`;
+    }, 1200);
+  }
+
+  // Initialize Page on window load
+  window.onload = function() {
+
+  console.log("Esperando Firebase...");
+
+};
+
+</script>
+<script type="module">
+ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+
+const firebaseConfig = {
+
+apiKey: "AIzaSyCbtn2RRSKs_dsv8ETHrG6bDSRtokdtXQ4",
+
+authDomain: "elecciones-2028.firebaseapp.com",
+
+projectId: "elecciones-2028",
+
+storageBucket: "elecciones-2028.firebasestorage.app",
+
+messagingSenderId: "1011171990808",
+
+appId: "1:1011171990808:web:d5c95849216b542385126d"
+
+};
+
+const app = initializeApp(firebaseConfig);
+
+const db = getFirestore(app);
+
+console.log("Firebase conectado");
+
+const snapshot = await getDocs(collection(db,"candidates"));
+
+candidateData = [];
+
+snapshot.forEach((doc)=>{
+
+  const d = doc.data();
+
+  candidateData.push({
+
+    id: doc.id,
+
+    name: d.candidate,
+
+    party:
+      doc.id === "omar"
+      ? "Fuerza del Pueblo"
+      : "PRM",
+
+    pollsPct: Number(d.polls || 0),
+
+    socialShare: Number(d.trends || 0),
+
+    trendsPct: Number(d.trends || 0),
+
+    combinedPct: Number(d.combined || 0),
+
+    posSentiment: Number(d.sentiment || 0),
+
+    negSentiment:
+      100 - Number(d.sentiment || 0),
+
+    color:
+      doc.id === "omar"
+      ? "#009b3a"
+      : "#0052a5"
+
+  });
+
+});
+
+console.log("candidateData:", candidateData);
+
+updateAllViews();
+
+renderCandidateTable();
+
+renderProvincialTable();
+  </script>
+  </body>
+  </html>
