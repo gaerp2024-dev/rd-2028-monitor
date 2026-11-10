@@ -585,7 +585,7 @@
       setTimeout(() => {
         if (icon) icon.classList.remove('fa-spin');
         if (output) {
-          output.innerHTML = `<p class="text-emerald-400 font-medium mb-1"><i class="fa-solid fa-circle-check mr-1"></i> Sincronización y consistencia matemática verificada.</p>`;
+          output.innerHTML = `<p class="text-emerald-400 font-medium mb-1"><i class="fa-solid fa-circle-check mr-1"></i> Sincronización completada con éxito.</p>`;
         }
       }, 1000);
     }
@@ -597,7 +597,7 @@
       output.innerHTML = `<span class="text-purple-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Analizando consulta...</span>`;
       setTimeout(() => {
         output.innerHTML = `<strong class="text-purple-300">Análisis para: "${query}"</strong>
-        <p class="mt-1 text-slate-300">La consistencia en los modelos de gráficos garantiza que el consolidado sume el 100% mientras que las métricas de sentimiento e impacto operan de manera independiente.</p>`;
+        <p class="mt-1 text-slate-300">El modelo procesa de manera independiente las variables de sentimiento y volumen para cada perfil político.</p>`;
       }, 1000);
     }
   </script>
@@ -652,18 +652,26 @@
           });
         });
 
-        // Completar predefinidos si faltan en Firestore
+        // Completar con valores variados y únicos si faltan en Firestore
         for (const [key, meta] of Object.entries(defaultCandidates)) {
           if (!fetchedIds.includes(key)) {
+            let pVal = 15, tVal = 20, cVal = 18, posVal = 65;
+            if (key === 'omar') { pVal = 30; tVal = 35; cVal = 32; posVal = 72; }
+            else if (key === 'david') { pVal = 29; tVal = 27; cVal = 30; posVal = 68; }
+            else if (key === 'alofoke') { pVal = 12; tVal = 34; cVal = 16; posVal = 75; }
+            else if (key === 'abel') { pVal = 16; tVal = 15; cVal = 16; posVal = 56; }
+            else if (key === 'carolina') { pVal = 18; tVal = 16; cVal = 17; posVal = 64; }
+            else if (key === 'guido') { pVal = 10; tVal = 14; cVal = 11; posVal = 59; }
+
             rawList.push({
               id: key,
               name: meta.name,
               party: meta.party,
-              pollsPct: key === 'alofoke' ? 14 : 16,
-              trendsPct: key === 'alofoke' ? 28 : 18,
-              rawCombined: key === 'alofoke' ? 15 : 18,
-              posSentiment: 65,
-              negSentiment: 35,
+              pollsPct: pVal,
+              trendsPct: tVal,
+              rawCombined: cVal,
+              posSentiment: posVal,
+              negSentiment: 100 - posVal,
               lastImpact: 'Medio',
               lastNewsSummary: 'En evaluación de tendencias iniciales.',
               color: meta.color
@@ -685,7 +693,7 @@
         // Ordenar de mayor a menor
         candidateData.sort((a, b) => b.combinedPct - a.combinedPct);
 
-        // Inicializar vistas, gráficos y simuladores con coherencia
+        // Inicializar vistas, gráficos y simuladores
         initCharts();
         renderCandidateTable();
         renderProvincialTable();
