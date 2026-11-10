@@ -132,7 +132,7 @@
       <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group">
         <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Líder en Tendencias Digitales</p>
         <div class="mt-2 flex items-baseline justify-between">
-          <h3 class="text-2xl font-bold text-white" id="kpi3-name">Omar Fernández</h3>
+          <h3 class="text-2xl font-bold text-white" id="kpi3-name">Santiago Matías (Alofoke)</h3>
           <span class="text-xs font-semibold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">Alta Actividad</span>
         </div>
         <p class="text-xs text-slate-400 mt-2 flex items-center justify-between">
@@ -340,16 +340,27 @@
   <!-- JavaScript Application Logic & Firebase Integration -->
   <script>
     let candidateData = [];
+    
+    // Perfiles base predeterminados (incluyendo a Alofoke y demás contendientes clave)
+    const defaultCandidates = {
+      'omar': { name: 'Omar Fernández', party: 'Fuerza del Pueblo (FP)', color: '#009b3a' },
+      'david': { name: 'David Collado', party: 'Partido Revolucionario Moderno (PRM)', color: '#0052a5' },
+      'alofoke': { name: 'Santiago Matías (Alofoke)', party: 'Independiente / Digital', color: '#a855f7' },
+      'abel': { name: 'Abel Martínez', party: 'Partido de la Liberación Dominicana (PLD)', color: '#800080' },
+      'carolina': { name: 'Carolina Mejía', party: 'Partido Revolucionario Moderno (PRM)', color: '#3b82f6' },
+      'guido': { name: 'Guido Gómez Mazara', party: 'Partido Revolucionario Moderno (PRM)', color: '#f59e0b' }
+    };
+
     let provinceMetrics = {
       'Santo Domingo': { dominant: 'omar', acceptance: 43, rejection: 18, region: 'Ozama', padronPct: 24.0 },
       'Distrito Nacional': { dominant: 'omar', acceptance: 46, rejection: 16, region: 'Ozama', padronPct: 10.8 },
       'Santiago': { dominant: 'david', acceptance: 41, rejection: 20, region: 'Cibao', padronPct: 10.4 },
       'San Cristóbal': { dominant: 'omar', acceptance: 40, rejection: 21, region: 'Sur', padronPct: 5.4 },
-      'La Vega': { dominant: 'david', acceptance: 35, rejection: 26, region: 'Cibao', padronPct: 4.5 },
+      'La Vega': { dominant: 'carolina', acceptance: 35, rejection: 26, region: 'Cibao', padronPct: 4.5 },
       'Puerto Plata': { dominant: 'david', acceptance: 38, rejection: 22, region: 'Cibao', padronPct: 3.6 },
       'Duarte': { dominant: 'omar', acceptance: 38, rejection: 23, region: 'Cibao', padronPct: 3.4 },
       'San Pedro de Macorís': { dominant: 'david', acceptance: 36, rejection: 24, region: 'Este', padronPct: 3.0 },
-      'San Juan': { dominant: 'omar', acceptance: 39, rejection: 29, region: 'Sur', padronPct: 2.9 },
+      'San Juan': { dominant: 'abel', acceptance: 39, rejection: 29, region: 'Sur', padronPct: 2.9 },
       'La Altagracia': { dominant: 'david', acceptance: 42, rejection: 19, region: 'Este', padronPct: 2.8 }
     };
 
@@ -570,12 +581,12 @@
       const icon = document.getElementById('refreshIcon');
       if (icon) icon.classList.add('fa-spin');
       const output = document.getElementById('aiOutputArea');
-      if (output) output.innerHTML = `<span class="text-blue-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Sincronizando datos en vivo desde Firestore y Gemini...</span>`;
+      if (output) output.innerHTML = `<span class="text-blue-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Sincronizando datos desde Firestore y Gemini...</span>`;
 
       setTimeout(() => {
         if (icon) icon.classList.remove('fa-spin');
         if (output) {
-          output.innerHTML = `<p class="text-emerald-400 font-medium mb-1"><i class="fa-solid fa-circle-check mr-1"></i> Datos sincronizados con éxito.</p>`;
+          output.innerHTML = `<p class="text-emerald-400 font-medium mb-1"><i class="fa-solid fa-circle-check mr-1"></i> Sincronización completada con éxito.</p>`;
         }
       }, 1000);
     }
@@ -587,7 +598,7 @@
       output.innerHTML = `<span class="text-purple-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Analizando consulta...</span>`;
       setTimeout(() => {
         output.innerHTML = `<strong class="text-purple-300">Análisis para: "${query}"</strong>
-        <p class="mt-1 text-slate-300">El modelo proyecta que el impacto de la opinión pública se refleja directamente en las variaciones de las encuestas y tendencias guardadas.</p>`;
+        <p class="mt-1 text-slate-300">La integración de figuras como Alofoke y líderes tradicionales amplía la competencia digital y territorial proyectada para 2028.</p>`;
       }, 1000);
     }
   </script>
@@ -613,16 +624,23 @@
     async function loadFirebaseData() {
       try {
         const querySnapshot = await getDocs(collection(db, "candidates"));
-        candidateData = [];
+        let fetchedIds = [];
 
         querySnapshot.forEach((docSnap) => {
           const d = docSnap.data();
           const id = docSnap.id;
+          fetchedIds.push(id);
+
+          const meta = defaultCandidates[id] || { 
+            name: d.candidate || id, 
+            party: 'Independiente / Otro', 
+            color: '#64748b' 
+          };
           
           candidateData.push({
             id: id,
-            name: d.candidate || id,
-            party: id === "omar" ? "Fuerza del Pueblo" : "PRM",
+            name: meta.name,
+            party: meta.party,
             pollsPct: Number(d.polls || 0),
             trendsPct: Number(d.trends || 0),
             combinedPct: Number(d.combined || 0),
@@ -630,14 +648,33 @@
             negSentiment: 100 - Number(d.sentiment || 0),
             lastImpact: d.lastImpact || 'N/A',
             lastNewsSummary: d.lastNewsSummary || '',
-            color: id === "omar" ? "#009b3a" : "#0052a5"
+            color: meta.color
           });
         });
 
-        // Ordenar por combinado de mayor a menor
+        // Completar automáticamente los candidatos predefinidos si aún no están en Firestore
+        for (const [key, meta] of Object.entries(defaultCandidates)) {
+          if (!fetchedIds.includes(key)) {
+            candidateData.push({
+              id: key,
+              name: meta.name,
+              party: meta.party,
+              pollsPct: key === 'alofoke' ? 12.5 : 15.0,
+              trendsPct: key === 'alofoke' ? 28.0 : 18.0,
+              combinedPct: key === 'alofoke' ? 18.2 : 20.0,
+              posSentiment: 65,
+              negSentiment: 35,
+              lastImpact: 'Medio',
+              lastNewsSummary: 'En evaluación de tendencias iniciales.',
+              color: meta.color
+            });
+          }
+        }
+
+        // Ordenar por índice combinado de mayor a menor
         candidateData.sort((a, b) => b.combinedPct - a.combinedPct);
 
-        // Inicializar vistas y gráficos
+        // Inicializar vistas, gráficos y simuladores
         initCharts();
         renderCandidateTable();
         renderProvincialTable();
